@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RooyFit</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body{margin:0;font-family:sans-serif;background:#111;color:#fff}
+header{background:#000;padding:1rem;text-align:center;color:#facc15}
+section{display:none;padding:1rem}
+.active{display:block}
+button{background:#333;color:#facc15;border:none;padding:.5rem 1rem;margin:.5rem;cursor:pointer}
+.dashboard{display:flex;flex-wrap:wrap;justify-content:space-around;margin-top:1rem}
+.card{background:#222;border:1px solid #333;border-radius:8px;padding:1rem;margin:.5rem;width:45%;text-align:center}
+.card i{font-size:2rem;margin-bottom:.5rem}
+label{display:block;margin-top:.5rem}
+input,select{width:100%;padding:.25rem;margin-top:.25rem;background:#333;border:1px solid #555;color:#fff}
+progress{width:100%}
+#logo{max-width:150px;margin:0 auto 1rem;display:block}
+</style>
+</head>
+<body>
+<header>
+<img id="logo" src="logo.png" alt="Logo">
+<h1 id="userName">Usuario X</h1>
+<progress id="progress" value="0" max="60"></progress>
+<p id="progressText">0 de 60 sesiones</p>
+</header>
+<section id="home" class="active">
+<div class="dashboard">
+<div class="card" onclick="show('settings')"><i class="fa fa-cog"></i><div>Configuración</div></div>
+<div class="card" onclick="show('stats')"><i class="fa fa-chart-line"></i><div>Estadísticas</div></div>
+<div class="card" onclick="askAdmin()"><i class="fa fa-toolbox"></i><div>Admin</div></div>
+<div class="card" onclick="show('favorites')"><i class="fa fa-star"></i><div>Rutinas favoritas</div></div>
+<div class="card" onclick="show('workout')"><i class="fa fa-dumbbell"></i><div>Iniciar entrenamiento</div></div>
+</div>
+</section>
+<section id="settings">
+<h2>Configuración</h2>
+<label>Cambiar unidades
+<select id="units"><option value="kg">Kilogramos</option><option value="lb">Libras</option></select></label>
+<h3>PRs</h3>
+<label>Sentadilla libre<input type="number" id="prSquat"></label>
+<label>Press de banca<input type="number" id="prBench"></label>
+<label>Peso muerto<input type="number" id="prDeadlift"></label>
+<button onclick="saveSettings()">Guardar</button>
+<button onclick="back()">Volver</button>
+</section>
+<section id="stats">
+<h2>Estadísticas</h2>
+<canvas id="chart" width="300" height="200"></canvas>
+<div id="calendar"></div>
+<button onclick="exportPDF()">Exportar a PDF</button>
+<button onclick="back()">Volver</button>
+</section>
+<section id="admin">
+<h2>Admin</h2>
+<label>Nombre del usuario<input type="text" id="adminName"></label>
+<label>Subir logo<input type="file" id="adminLogo"></label>
+<label>Firma<input type="text" id="adminSignature"></label>
+<label>Contraseña<input type="password" id="adminPass"></label>
+<label>Cargar rutina (CSV)<input type="file" id="adminCSV"></label>
+<button onclick="saveAdmin()">Guardar</button>
+<button onclick="back()">Volver</button>
+</section>
+<section id="favorites">
+<h2>Rutinas favoritas</h2>
+<ul id="favList"></ul>
+<button onclick="back()">Volver</button>
+</section>
+<section id="workout">
+<h2>Entrenamiento</h2>
+<div id="workoutList"></div>
+<button onclick="finishWorkout()">Terminar</button>
+<button onclick="back()">Cancelar</button>
+</section>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}
+const data=JSON.parse(localStorage.getItem('rooyfit')||'{}');
+function save(){localStorage.setItem('rooyfit',JSON.stringify(data));}
+function show(id){document.querySelectorAll('section').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active');}
+function back(){show('home');}
+function updateHome(){document.getElementById('userName').textContent=data.name||'Usuario X';document.getElementById('logo').src=data.logo||'logo.png';const prog=data.sessions||0;document.getElementById('progress').value=prog;document.getElementById('progressText').textContent=prog+' de 60 sesiones';}
+function saveSettings(){data.units=document.getElementById('units').value;data.prSquat=document.getElementById('prSquat').value;data.prBench=document.getElementById('prBench').value;data.prDeadlift=document.getElementById('prDeadlift').value;save();back();}
+function askAdmin(){const p=prompt('Contraseña admin');if(p=== (data.adminPass||'1234')){document.getElementById('adminName').value=data.name||'';document.getElementById('adminSignature').value=data.signature||'';document.getElementById('adminPass').value=data.adminPass||'';show('admin');}}
+function saveAdmin(){data.name=document.getElementById('adminName').value;const file=document.getElementById('adminLogo').files[0];if(file){const r=new FileReader();r.onload=e=>{data.logo=e.target.result;save();updateHome();};r.readAsDataURL(file);}data.signature=document.getElementById('adminSignature').value;data.adminPass=document.getElementById('adminPass').value;const csv=document.getElementById('adminCSV').files[0];if(csv){const r=new FileReader();r.onload=e=>{const wb=XLSX.read(e.target.result,{type:'binary'});const ws=wb.Sheets[wb.SheetNames[0]];const json=XLSX.utils.sheet_to_json(ws);data.routines=json;save();};r.readAsBinaryString(csv);}save();back();updateHome();}
+function loadWorkout(){const day=data.sessions||0;if(!data.routines)return;const routine=data.routines.filter(r=>r.Dia===(day%5+1) && r.Semana===(Math.floor(day/5)+1));const cont=document.getElementById('workoutList');cont.innerHTML='';routine.forEach((r,i)=>{const div=document.createElement('div');div.innerHTML=`<strong>${r.Ejercicio}</strong>`;for(let s=1;s<=r.Series;s++){const row=document.createElement('div');row.innerHTML=`Serie ${s}: <input type='number' value='${r.Reps}' id='reps${i}_${s}' style='width:60px'> x <input type='number' value='${r.Peso}' id='peso${i}_${s}' style='width:60px'> <input type='checkbox' id='done${i}_${s}'>`;div.appendChild(row);}cont.appendChild(div);});}
+function finishWorkout(){data.sessions=(data.sessions||0)+1;save();updateHome();back();}
+function exportPDF(){alert('Función PDF no implementada');}
+updateHome();
+loadWorkout();
+</script>
+</body>
+</html>
