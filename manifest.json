@@ -1,0 +1,13 @@
+{
+  "name": "RooyFit",
+  "short_name": "RooyFit",
+  "icons": [{
+    "src": "logo.png",
+    "sizes": "192x192",
+    "type": "image/png"
+  }],
+  "start_url": "rooyfit.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#facc15"
+}
